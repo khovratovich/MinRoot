@@ -1,2 +1,2 @@
 # MinRoot
-VDF proposal MinRoot
+VDF proposal MinRoot.
