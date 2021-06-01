@@ -1,0 +1,32 @@
+  
+name: Build LaTeX document
+on:
+  push:
+    branches:
+      - master
+jobs:
+  build_latex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v1
+      - name: LaTeX compilation
+        uses: xu-cheng/latex-action@master
+        with:
+          # The root LaTeX file to be compiled
+          root_file: main.tex
+          # The working directory for the latex compiler to be invoked
+          working_directory: # optional
+          # LaTeX engine to be used
+          compiler: # optional, default is latexmk
+          # Extra arguments to be passed to the latex compiler
+          args: # optional, default is -pdf -latexoption=-file-line-error -latexoption=-interaction=nonstopmode
+          # Install extra packages by apt-get
+          extra_system_packages: # optional
+      - name: Create output directory
+        run: mkdir -p public; mv main.pdf public/minroot.pdf
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: public
