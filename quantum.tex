@@ -97,5 +97,24 @@ Grover's search is usually discussed for some oracle function $f(\cdot)$. Howeve
 
 We note that quite little is known about the quantum complexity of Groebner basis algorithms nor of the equation solving. There exist several results showing that Gaussian elimination of sparse matrices can be sped up greatly on a quantum computer\url{https://arxiv.org/abs/0811.3171}, which in turns would shorten the elimination step in the Groebner basis algorithms. However, it is the subject of the future research if an algorithm like F4 or F5~\cite{faugere2002new} can be improved as a whole. We expect that if it can be done, running a quantum algorithm every few steps would induce high latency, and the high value of $D$ would rule out such strategies. To the best of our knowledge there is no quantum improvement to solving univariate equations either.
  
-%\section{Quantum Circuits for VDF candidates}
+\section{Quantum Circuits for VDF candidates}
+ 
+Quantum circuits for the VDF candidates are required for a proper estimation of resources required to carry out any quantum attacks. Previous work~\cite{estimatesQuantumAES} on quantum resource estimation follows a similar approach. While attack resource estimation might focus on restricting the number of qubits~\cite{estimatesQuantumAES} or restricting circuit depth~\cite{keysearchQuantumAES}, studying the quantum circuits is the clear first step in any case. The higher level goal is to construct a circuit $\mathcal{C}$ for each of the VDF candidate functions, to implement the operation $\ket{I}\ket{0} \mapsto \ket{I}\ket{VDF_I(x)}$. 
+
+To design the quantum circuits we look at the basic operations utilized in all of the candidates. Quantum gates for performing addition, multiplication, square-root and cube-root calculation in finite fields are required as building blocks to construct the circuits. The work of Beauregard, Brassard and Fernandez~\cite{quantumArithmetic} gives us the circuits for addition and multiplication in a finite field. For the other operations we use these circuits as building blocks and construct them ourselves.
+
+\subsection{Gates for Finite Field Arithmetic}
+
+We are working in finite field $\mathbb{F}_p$ where the prime $p$ is $n$-bits long:
+
+\begin{itemize}
+    \item \textbf{Addition.} For the quantum circuit for addition in field $\mathbb{F}_p$, first a simple adder gate for integers is built. This allows adding a classical value to a quantum register. One way to do this is to take the quantum Fourier transform (QFT) of some qubit register $\ket{x}$ to the QFT of the sum $x + a$. This is called the $\phi$-adder and was introduced by Gossett~\cite{quantumCarrySave}. The other method to construct this integer adder is via the carry-sum adder of Vedral, Barenco and Ekert~\cite{Vedral_Barenco_Ekert_1996}, which is similar to classical bit-wise addition. Once we have this integer adder, to build the adder gate for $\mathbb{F}_p$ we introduce control qubits. After addition of $a$, $p$ is subtracted for the register and then we access the most significant qubit of the register to check for an overflow. Using the QFT-based $\phi$-adder method requires $O(n^2)$ elementary gates in depth $O(n)$ on an $(n+1)$-qubit register. The carry-sum adder requires $O(n)$ elementary gates in depth $O(n)$ and needs $2n$ qubits.  Adding the control qubits bumps up the number of qubits required by a small constant. 
+
+\item \textbf{Multiplication.} The quantum circuit for multiplication in field $\mathbb{F}_p$ utilizes the addition gate above and uses a few control qubits to get the desired product. We skip the detailed description for brevity. If the QFT-based $\phi$-adder are utilized then multiplication requires $O(n^3)$ elementary gates in depth $O(n^2)$ on $(2n+3)$-qubits. However, if the carry-sum adder is used instead then we need $O(n^2)$ elementary gates in depth $O(n^2)$ working over $3n+2$ qubits.
+
+\item \textbf{Square-root calculation.} Previous work does not consider constructing a quantum circuit for square-root calculation over finite fields. Hence, our approach is to use the above gates as building blocks along with known classical algorithms. The Tonelli-Shanks algorithm~\cite{Shanks} is used classically to determine square roots in finite fields. However, this algorithm is randomized. The randomized part of Tonelli-Shanks finds a non-residue $D$ mod $p$. To make this calculation deterministic, this non-residue can be calculated once offline. Once $D$ is known, the algorithm is deterministic.
+
+\item \textbf{Cube-root calculation.}
+
+\end{itemize}
  
