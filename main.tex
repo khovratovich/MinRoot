@@ -2,8 +2,10 @@
 \usepackage[utf8]{inputenc}
 
 \usepackage{amssymb,amsmath,amsfonts,longtable,amsthm,
-booktabs, comment,array, ifpdf, tabularx,url,color,array,colortbl,hyperref,graphicx, physics}
+booktabs, comment,array, ifpdf, tabularx,url,color,array,colortbl,hyperref,graphicx, physics,siunitx}
 \usepackage[hmargin=3cm,vmargin=3cm]{geometry}
+\usepackage[]{algorithm2e}
+
 
 \newtheorem{definition}{Definition}
 \newtheorem{lemma}{Lemma}
@@ -419,7 +421,44 @@ f(x,y)
 \end{cases}
 $$
 Note that in the context of precomputation and other attacks the state has effective size of $2\log p$ bits.
+
+Another important operation is exponentiation. If exponentiation $x^y$ is performed using the Binary ladder exponentiation algorithm~\cite{Crandall_Pomerance_2005}, which utilizes the square and multiply method, the complexity is asymptotically:
+
+$$ C ~ (\log y)S + HM $$
+
+\begin{algorithm}[H]
  
+ initialization $z=x, a=1$\;
+ then loop over bits of $y$, starting with lowest\;
+ \For{$0\leq j < D - 1$}{
+  Represent $y_i = 2^cd$, where $d$ is odd or zero\;
+  $z=z\left(x^{d}\right)^{2^c}$\;
+  \If{$y_j == 1$}{$a=za$\;}
+  $z=z^2$\;
+  return $az$;
+ }
+ \caption{Steps in the Binary ladder exponentiation (right-left form) algorithm.}
+\end{algorithm}
+
+Where $S$ is the number of squarings required, $H$ the number of $1$'s in the binary representation of $y$ and $M$ is the number of multiplications. The possible ways to improve ladder complexity involve changing the base to some $B = 2^b >2$. If we consider the Windowing ladder algorithm~\cite{Crandall_Pomerance_2005} (with pre-computation), the base-$B$ expansion of $y$ is represented as ($y_0, \dots, y_{D-1}$). It is assumed that the values $x^d$ (for $1 < d < B$, $d$ is odd) have been pre-computed. 
+
+\begin{algorithm}[H]
+ 
+ initialization $z=1$\;
+ \For{$D-1 \geq i \geq 0$}{
+  Represent $y_i = 2^cd$, where $d$ is odd or zero\;
+  $z=z\left(x^{d}\right)^{2^c}$\;
+  \If{$i>0$}{$z=z^{2^{b}}$\;}
+ }
+ \caption{Steps in the Windowing ladder algorithm.}
+\end{algorithm}
+
+The average-case complexity of the windowing for the windowing algorithm is:
+
+$$C ~ (\log y)S + (1 - 2^{-b})\frac{\log y}{b}M$$
+
+While pre-computation is an important aspect to consider, if $b=3$ or $b=4$ the ladder computation is definitely reduced.
+
  %The VDF  function $F$ is defined as $f^D$ for $2^{26}\leq D \leq 2^{44}$.
  
  \subsection{Classical attacks}
