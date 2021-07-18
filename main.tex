@@ -2,8 +2,10 @@
 \usepackage[utf8]{inputenc}
 
 \usepackage{amssymb,amsmath,amsfonts,longtable,amsthm,
-booktabs, comment,array, ifpdf, tabularx,url,color,array,colortbl,hyperref,graphicx, physics}
+booktabs, comment,array, ifpdf, tabularx,url,color,array,colortbl,hyperref,graphicx, physics,siunitx}
 \usepackage[hmargin=3cm,vmargin=3cm]{geometry}
+\usepackage[]{algorithm2e}
+
 
 \newtheorem{definition}{Definition}
 \newtheorem{lemma}{Lemma}
@@ -22,8 +24,10 @@ booktabs, comment,array, ifpdf, tabularx,url,color,array,colortbl,hyperref,graph
     pdfpagemode=FullScreen,
 }
 
+\newcommand{\mary}[1]{ {\color{magenta} Mary:  #1 }}
+
 \title{Not So Slo\sout{w}th:\\  Invertible VDF for Ethereum and others}
-\author{Dmitry Khovratovich\\Ethereum Foundation \and Mary Maller\\Ethereum Foundation \and Pratyush Tiwari\\Ethereum Foundation}
+\author{Dmitry Khovratovich\\Ethereum Foundation \and Mary Maller\\Ethereum Foundation \and Pratyush Ranjan Tiwari\\Johns Hopkins University}
 
 
 \begin{document}
@@ -34,7 +38,9 @@ booktabs, comment,array, ifpdf, tabularx,url,color,array,colortbl,hyperref,graph
 
 \section{Introduction}
 
-Many distributed protocols benefit not only from fast but also from (guaranteed) slow computations. The latter is often required when a party is supposed to produce an output that will eventually benefit some other participants, so that the slowness of computation would guarantee unpredictability and thus fairness.
+Many distributed protocols benefit not only from fast but also from (guaranteed) slow computations. 
+When we say guaranteed slow computations we mean that there is a lower bound on the time the computation takes even if one has access to an unlimited number of cores i.e. the computation cannot be parallelized.
+Slow computations are often required when a party is supposed to produce an output that will eventually benefit some other participants, so that the slowness of computation would guarantee unpredictability and thus fairness.
 
 An example of this requirement in Ethereum 2.0 is the following. A group of 32 validators progressively builds a chain of collective randomness, also called a beacon chain, with one value $O$ generated per epoch $\mathcal{E}$. The value $O$ must be computed by the leading validator of $\mathcal{E}$ and must depend on certain inputs produced by other validators during $\mathcal{E}$. When generated, $O$ serves as the source of entropy in other chains and thus affect a number of computations potentially beneficial to the validator. It is thus of utmost importance to ensure that $O$ can be outputted only after a certain \emph{delay}. In other words, $O$ is derived from a \emph{verifiable delay function} (VDF).
 
@@ -74,7 +80,8 @@ The delay hardware is supposed to be a USB stick fitted with an ASIC implementin
 Existing VDF constructions rely on a separate proof system that proves correctness of the VDF computation and thus ensures the delay statement. Clearly, the security of VDF relies on the one of the proof system.  The following requirements are given:
 \begin{enumerate}
     \item First, a proof system should provide reasonable security level in a widely accepted security model. A random oracle model is chosen for its simplicity and versatility. There are two flavours of it:   \emph{programmable} and \emph{non-programmable ROM}. The former assumes we can dynamically select RO outputs in a simulation for the security proof, which simplifies the proof but formally contrasts with real-world instantiations of RO with hash functions, whose functionality is pre-fixed. The latter model is somewhat closer to the reality but such security proofs are not always available. We thus \emph{prefer}  the non-programmable ROM but it is not a strong requirement. Regarding the security level, at least 120 bits of security is required  (possibly under additional assumptions on some primitives used in the system).
-    \item Secondly, a proof of a delay statement, whatever it is, should be \emph{post-quantum secure}.  Concretely, no quantum attacks should exist on underlying primitives, and additionally the security in the random oracle model, if being employed, should translate to quantum oracles. More precisely, at least 80 bits of \textbf{provable soundness in a quantum random oracle model} is required, with slight preference for non-programmable one.
+    \item Secondly, a proof of a delay statement, should be \emph{post-quantum secure}.  Concretely, no quantum attacks should exist on underlying primitives, and additionally the security in the random oracle model, if being employed, should translate to quantum oracles. More precisely, at least 80 bits of \textbf{provable soundness in a quantum random oracle model} is required, with slight preference for non-programmable one.
+    \mary{should the proof not be computable on a classical machine as well.}
     \item The proof should be \textbf{compact}. It is understood that the post-quantum security makes it difficult to be truly succinct (e.g. a few kilobytes), but it should be possible to contain the proof into 200 kBytes.
     \item The proof should be  verified within very short time (\textbf{succinct verification}). Concretely, we require at most 20ms verification time on a Raspberry Pi 4 Model B (single thread, no overclocking).
 \end{enumerate}
@@ -82,24 +89,24 @@ Existing VDF constructions rely on a separate proof system that proves correctne
 \subsection{Cryptographic primitives and assumptions}
 
 It is natural to accept widely used cryptographic primitives as secure ones. For instance standard hash functions such as SHA-256 and SHA-3 (Keccak)   may be assumed to be ideal 256-bit hash function and may be used to instantiate a 256-bit random oracle in the Fiat-Shamir transformation  and similar operations. 
-
-
 It should be noted however that the regular hash functions are not well suited for most proof systems capable of proving delay statements. As a result, their usage in delay proofs is probably limited. 
 %Further, random oracle queries heuristically instantiated by SHA256 calls may be arithmetised in a recursive verifier circuit, e.g. as done in [Halo Infinite](https://eprint.iacr.org/2020/1536.pdf). No other cryptographic assumption or heuristic may be used.
 %\end{assumption} 
+
+
 
 \subsection{ Prover hardware system}
 
 We have a separate requirement to a potential  prover hardware system. We expect it to be a prover rig with prover software producing delay proofs for $1\leq u \leq 8$  always-active delay hardware units. The requirement is to design and implement a prover system with
 \begin{itemize}
-    \item  \textbf{commodity hardware} -- the prover rig is built from off-the-shelf commodity hardware and requires little assembly;
- \item  \textbf{low latency} -- delay proofs are produced with a latency (relative to the delay function output produced by the delay hardware) of:
+    \item  \textbf{Commodity hardware} -- the prover rig is built from off-the-shelf commodity hardware and requires little assembly;
+ \item  \textbf{Low latency} -- delay proofs are produced with a latency (relative to the delay function output produced by the delay hardware) of:
  \begin{itemize}
      \item at most 10\% of the delay time if  $d\geq 2^{36}$ (i.e. more than an hour);
           \item at most 20\% of the delay time if  $d\geq 2^{32}$ (more than a few minutes);
                \item at most 40\% of the delay time if   $d \geq 2^{28}$ (all other cases);
  \end{itemize}
- \item \textbf{permissive licensing} -- the prover software is open-sourced under the Apache 2.0 license.
+ \item \textbf{Permissive licensing} -- the prover software is open-sourced under the Apache 2.0 license.
 \end{itemize}
 
 
@@ -117,10 +124,10 @@ Following the definition of VDF by~\cite{DBLP:conf/crypto/BonehBBF18} we conside
 \end{itemize}
 We say that the protocol $(F,\Pi)$ is a \emph{verifiable delay function}  if it has the following features:
 \begin{itemize}
-    \item \textbf{(Completeness)} Honest parties can execute it by calling $F$ in $t$ sequential steps and then by creating a proof $\pi$ that will be accepted by a verifier. It is ok if there is a non-zero, but from all points of view negligible, chance to fail to produce a proof, even though many practical VDF proposals do provide \emph{perfect completeness}, i.e. a proof can be always found.
-    \item \textbf{(Fast verification)} The proof $\pi$ can be verified in time polylogarithmic of $t$  (i.e. exponentially faster than the time needed for computation).  Note that this requirement rules out the designs based on computing an iterative function over a graph of a \href{https://cs.brown.edu/research/pubs/theses/ugrad/2019/zhang.aaron.pdf}{special form}, so that only a fraction of edges of the graph have to be proven, as these fractions turn to be bigger than polylogarithmic functions for practical parameters.
-    \item \textbf{(Non-malleability)} For any starting point $I$ and proof $\pi$ it should be difficult to find $(O'\neq O=F(I))$ that can be verified by $\pi$. Here by difficulty we mean only the complexity of the online phase, and may ignore (or take with a smaller factor) the cost of  precomputations.
-    \item \textbf{(Sequentiality) or (Delay)} For any starting point $I$ it should be difficult to compute $(O,\pi)$ faster than in $\sigma t $ time for some  $\sigma $ close to 1. Note that we can allow asymptotically sublinear methods of computing as long as the constants are prohibitively large to be an actual time improvement.
+    \item \textbf{Completeness:} Honest parties can execute it by calling $F$ in $t$ sequential steps and then by creating a proof $\pi$ that will be accepted by a verifier. It is ok if there is a non-zero, but from all points of view negligible, chance to fail to produce a proof, even though many practical VDF proposals do provide \emph{perfect completeness}, i.e. a proof can be always found.
+    \item \textbf{Fast verification:} The proof $\pi$ can be verified in time polylogarithmic of $t$  (i.e. exponentially faster than the time needed for computation).  Note that this requirement rules out the designs based on computing an iterative function over a graph of a \href{https://cs.brown.edu/research/pubs/theses/ugrad/2019/zhang.aaron.pdf}{special form}, so that only a fraction of edges of the graph have to be proven, as these fractions turn to be bigger than polylogarithmic functions for practical parameters.
+    \item \textbf{Non-malleability:} For any starting point $I$ and proof $\pi$ it should be difficult to find $(O'\neq O=F(I))$ that can be verified by $\pi$. Here by difficulty we mean only the complexity of the online phase, and may ignore (or take with a smaller factor) the cost of  precomputations.
+    \item \textbf{Sequentiality or Delay:}  For any starting point $I$ it should be difficult to compute $(O,\pi)$ faster than in $\sigma t $ time for some  $\sigma $ close to 1. Note that we can allow asymptotically sublinear methods of computing as long as the constants are prohibitively large to be an actual time improvement.
 \end{itemize}
 It turns out that if we include quantum adversaries, then the only existing candidate is a combination of sequential algebraic transformation and a quantum-secure verifiable computation protocol. In order to boost the proof phase, the transformation $F$ is chosen to be invertible with low algebraic degree of the inverse. The entire construction is then called  \emph{invertible  VDF}.  
 
@@ -320,6 +327,9 @@ One can note that some VDF proposals employ a hash function at the first step of
 
 \subsection{MinRoot  (Khovratovich-Feist)}
 
+\mary{Problem: need that p = 2 mod 3 for the cube root to exist.  This is not true e.g. if p = the order of BLS12-381.
+Can it work e.g. taking 5th roots rather than cube roots?
+}
 For our proposal MinRoot we select function $f$ as part of $F$ so that the inverse $\widehat{f}$ is fastest possible to compute in the proof creation part. Concretely, we consider function $h(x) = x^{(2p-1)/3}$, which is the inverse of a cubic (i.e. low degree) function: $h^3(x) = x^{2p-1} = x\bmod{p}$. Then we define
 
 \begin{enumerate}
@@ -419,7 +429,44 @@ f(x,y)
 \end{cases}
 $$
 Note that in the context of precomputation and other attacks the state has effective size of $2\log p$ bits.
+
+Another important operation is exponentiation. If exponentiation $x^y$ is performed using the Binary ladder exponentiation algorithm~\cite{Crandall_Pomerance_2005}, which utilizes the square and multiply method, the complexity is asymptotically:
+
+$$ C ~ (\log y)S + HM $$
+
+\begin{algorithm}[H]
  
+ initialization $z=x, a=1$\;
+ then loop over bits of $y$, starting with lowest\;
+ \For{$0\leq j < D - 1$}{
+  Represent $y_i = 2^cd$, where $d$ is odd or zero\;
+  $z=z\left(x^{d}\right)^{2^c}$\;
+  \If{$y_j == 1$}{$a=za$\;}
+  $z=z^2$\;
+  return $az$;
+ }
+ \caption{Steps in the Binary ladder exponentiation (right-left form) algorithm.}
+\end{algorithm}
+
+Where $S$ is the number of squarings required, $H$ the number of $1$'s in the binary representation of $y$ and $M$ is the number of multiplications. The possible ways to improve ladder complexity involve changing the base to some $B = 2^b >2$. If we consider the Windowing ladder algorithm~\cite{Crandall_Pomerance_2005} (with pre-computation), the base-$B$ expansion of $y$ is represented as ($y_0, \dots, y_{D-1}$). It is assumed that the values $x^d$ (for $1 < d < B$, $d$ is odd) have been pre-computed. 
+
+\begin{algorithm}[H]
+ 
+ initialization $z=1$\;
+ \For{$D-1 \geq i \geq 0$}{
+  Represent $y_i = 2^cd$, where $d$ is odd or zero\;
+  $z=z\left(x^{d}\right)^{2^c}$\;
+  \If{$i>0$}{$z=z^{2^{b}}$\;}
+ }
+ \caption{Steps in the Windowing ladder algorithm.}
+\end{algorithm}
+
+The average-case complexity of the windowing for the windowing algorithm is:
+
+$$C ~ (\log y)S + (1 - 2^{-b})\frac{\log y}{b}M$$
+
+While pre-computation is an important aspect to consider, if $b=3$ or $b=4$ the ladder computation is definitely reduced.
+
  %The VDF  function $F$ is defined as $f^D$ for $2^{26}\leq D \leq 2^{44}$.
  
  \subsection{Classical attacks}

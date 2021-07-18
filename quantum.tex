@@ -90,12 +90,76 @@ which is only by the factor of $\sqrt{D}$ lower than the classical one \eqref{eq
 
 \subsection{Practicality of Quantum Search}
 
-Grover's search is usually discussed for some oracle function $f(\cdot)$. However, several practical issues need to be considered when a specific construction of $f(\cdot)$ is being considered. The work of Viamontes, Markov and Hayes~\cite{practicalityGrover05} focuses on these issues.  The first issue is that in order to query $f(\cdot)$ in superposition, we need a quantum hardware implementation of  $f(\cdot)$. While a quantum circuit is usually similar in size to its classical counterpart, if the the circuit's maximum depth exceeds $\sqrt{N}$ then the evaluation of  $f(\cdot)$ is the more cost consuming part of searching a size $N$ database. This would diminish the quantum speedup by a considerable amount.
+Grover's search is usually discussed for some oracle function $f(\cdot)$. However, several practical issues need to be considered when a specific construction of $f(\cdot)$ is being considered. The work of Viamontes, Markov and Hayes~\cite{practicalityGrover05} focuses on these issues.  The first issue is that in order to query $f(\cdot)$ in superposition, we need a quantum hardware implementation of  $f(\cdot)$. While a quantum circuit is usually similar in size to its classical counterpart, if the the circuit's maximum depth exceeds $\sqrt{N}$ then the evaluation of  $f(\cdot)$ is the more cost consuming part of searching a size $N$ database. This would diminish the quantum speedup by a considerable amount. Hence, to come up with resource estimates for quantum attacks we first come up with the quantum circuits for the VDF candidates. 
 
 
 \subsection{Quantum Grobner}
 
 We note that quite little is known about the quantum complexity of Groebner basis algorithms nor of the equation solving. There exist several results showing that Gaussian elimination of sparse matrices can be sped up greatly on a quantum computer\url{https://arxiv.org/abs/0811.3171}, which in turns would shorten the elimination step in the Groebner basis algorithms. However, it is the subject of the future research if an algorithm like F4 or F5~\cite{faugere2002new} can be improved as a whole. We expect that if it can be done, running a quantum algorithm every few steps would induce high latency, and the high value of $D$ would rule out such strategies. To the best of our knowledge there is no quantum improvement to solving univariate equations either.
  
-%\section{Quantum Circuits for VDF candidates}
+\section{Quantum Circuits for VDF candidates}
  
+Quantum circuits for the VDF candidates are required for a proper estimation of resources required to carry out any quantum attacks. Previous work~\cite{estimatesQuantumAES} on quantum resource estimation follows a similar approach. While attack resource estimation might focus on restricting the number of qubits~\cite{estimatesQuantumAES} or restricting circuit depth~\cite{keysearchQuantumAES}, studying the quantum circuits is the clear first step in any case. The higher level goal is to construct a circuit $\mathcal{C}$ for each of the VDF candidate functions, to implement the operation $\ket{I}\ket{0} \mapsto \ket{I}\ket{VDF_I(x)}$. 
+
+To design the quantum circuits we look at the basic operations utilized in all of the candidates. Quantum gates for performing addition, multiplication, square-root and cube-root calculation in finite fields are required as building blocks to construct the circuits. The work of Beauregard, Brassard and Fernandez~\cite{quantumArithmetic} gives us the circuits for addition and multiplication in a finite field. For the other operations we use these circuits as building blocks and construct them ourselves.
+
+\subsection{Gates for Finite Field Arithmetic}
+
+We are working in finite field $\mathbb{F}_p$ where the prime $p$ is $n$-bits long:
+
+\begin{itemize}
+    \item \textbf{Addition.} For the quantum circuit for addition in field $\mathbb{F}_p$, first a simple adder gate for integers is built. This allows adding a classical value to a quantum register. One way to do this is to take the quantum Fourier transform (QFT) of some qubit register $\ket{x}$ to the QFT of the sum $x + a$. This is called the $\phi$-adder and was introduced by Gossett~\cite{quantumCarrySave}. The other method to construct this integer adder is via the carry-sum adder of Vedral, Barenco and Ekert~\cite{Vedral_Barenco_Ekert_1996}, which is similar to classical bit-wise addition. Once we have this integer adder, to build the adder gate for $\mathbb{F}_p$ we introduce control qubits. After addition of $a$, $p$ is subtracted for the register and then we access the most significant qubit of the register to check for an overflow. Using the QFT-based $\phi$-adder method requires $O(n^2)$ elementary gates in depth $O(n)$ on an $(n+1)$-qubit register. The constants considering the elementary gates complexity are small ($<10$). The carry-sum adder requires $O(n)$ elementary gates in depth $O(n)$ and needs $2n$ qubits.  Adding the control qubits bumps up the number of qubits required by a small constant. 
+
+\item \textbf{Multiplication.} The quantum circuit for multiplication in field $\mathbb{F}_p$ utilizes the addition gate above and uses a few control qubits to get the desired product. We skip the detailed description for brevity. If the QFT-based $\phi$-adder are utilized then multiplication requires $O(n^3)$ elementary gates in depth $O(n^2)$ on $(2n+3)$-qubits. However, if the carry-sum adder is used instead then we need $O(n^2)$ elementary gates in depth $O(n^2)$ working over $3n+2$ qubits. Once we have a multiplication circuit, exponentiation to power $\rho$ requires $O(\log \rho)$ multiplications via repeated squaring.
+
+
+\item \textbf{Square-root calculation.} Previous work does not consider constructing a quantum circuit for square-root calculation over finite fields. Hence, our approach is to use the above gates as building blocks along with known classical algorithms. The Tonelli-Shanks algorithm~\cite{Shanks} is used classically to determine square roots in finite fields. However, this algorithm is randomized. The randomized part of Tonelli-Shanks finds a non-residue $D$ mod $p$. To make this calculation deterministic, this non-residue can be calculated once offline. Once $D$ is known, the algorithm is deterministic. Tonelli-Shanks algorithm~\cite{Shanks} works as follows. Let $x$ be a solution to $x^2 \equiv a \text{ (mod } p)$. The term $p-1$ is represented as $Q\cdot2^{s}$ where $Q$ is odd. Such a representation can easily be found by repeated division by $2$. The square-root $x$ can be followed using the following loop:
+
+\begin{enumerate}
+    \item Set $t = a^{(Q + 1)/2}$ and find the least $i$ such that $r^{2^i} \equiv 1 \text{ (mod } p)$ for $r = a^Q \text{ (mod } p)$.
+    
+    \item If $i=0$ then the square-root is $x \equiv \pm t \text{ (mod } p)$ otherwise set $y \equiv D^{Q(2^{s-i-1})} \text{ (mod } p)$ and repeat step (1) with $t = ty$ and $r = ry^2$
+\end{enumerate}
+
+We can construct a quantum circuit for performing these operations above as we can already perform finite field arithmetic. The pre-computed values can be input to the circuit. Other than non-residue $D$, inverse of $2$ can also be input as a pre-computed value to aid in finding the representation of $p-1$ as $Q\cdot2^{s}$. Overall, if a non-residue is given as input, Tonelli-Shanks algorithm runs in $O(\log^2 p) = O(n^2)$ time. Since the values of $t$, $r$, $y$, $D$ and $Q$ are essential for this algorithm, they will be stored in quantum registers. Moreover, each iteration requires two exponentiations to (at least) $Q$, the overall resources would consist of $O(n)$ qubits with small constants and at least $O(\log Q)$ multiplications. Therefore, calculating square roots requires roughly $4n$ qubits to store values, and $3n + 2$ qubits for multiplication. Since these estimates are lenient, we estimate one square-root calculation to require $\approx 10n$ qubits and $O(n^2)$ elementary gates in depth $O(n^3)$.
+
+\item \textbf{Cube-root calculation.} Cube-roots can be calculated by just exponentiating to $p+1/3$. This requires $\log(p+1/3) \approx n$ multiplications. However, since the qubits can be reused, the number of qubits required to calculate cube-roots is the same as multiplication. However, the circuit depth required increases by a linear factor over the multiplication circuit.
+
+\end{itemize}
+
+\subsection{Resource Estimation}
+
+An adversary aiming to mount a quantum attack on these VDF candidates would first need to design a quantum circuit implementing one round of the candidate functions. Such an adversary will try to minimize the number of qubits required to mount such an attack as that is one of the most expensive resource. In such a scenario, it might not be feasible to attack constructions that involve square-root calculation in a finite-field. 
+\begin{table}[ht]
+\caption{Arithmetic operations for a one round quantum circuit for VDF candidates}
+\centering
+  \begin{tabular}{|l | l | l | l| l|}
+    \hline
+     Candidates  & Additions & Multiplication & Square-root calculation & Cube-root calculation\\
+    \hline
+    MinRoot     & 3 & 0 & 0 & 1 \\
+    VeeDo       & 4 & 2 & 0 & 2 \\
+    Sloth++     & 4 & 0 & 2 & 0\\
+    MinRoot Lite    & 4 & 0 & 0 & 1\\
+    \hline
+  \end{tabular}
+  \label{Tab:Tcr}
+\end{table}
+
+We now estimate the concrete resource requirements for a quantum adversary to implement VDF candidates. This gives us a lower bound for the quantum resources required to mount any attack. Note that any search method would require it's own resources, over the resources required below. This gives us a way to determine the right VDF challenge difficulty over the years as quantum computers become more powerful and efficient. As is clear from Table 2, all VDF candidates are practically safe even if a $1000$-qubit quantum computer exists when $n = 128$-bits. For reference, the current best quantum computer in practice hasn't even reached $100$-qubits~\cite{}.
+
+\begin{table}[ht]
+\caption{Resource estimation for quantum circuits for 1-round VDF calculation}
+\centering
+  \begin{tabular}{|l | l | l | l| l|}
+    \hline
+     Candidates  & No. of Qubits ($q$) & Elementary Gates & Circuit Depth \\
+    \hline
+    MinRoot     & $q <10n$ & $O(n^2)$ & $O(n^3)$ \\
+    VeeDo       & $10n < q <20n$ & $O(n^2)$ & $O(n^3)$ \\
+    Sloth++     & $20n< q <30n$ & $O(n^2)$ & $O(n^3)$ \\
+    MinRoot Lite    & $q \approx 10n$ & $O(n^2)$ & $O(n^3)$ \\
+    \hline
+  \end{tabular}
+  \label{Tab:Tcr}
+\end{table}
