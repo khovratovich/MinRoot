@@ -87,7 +87,7 @@ Existing VDF constructions rely on a separate proof system that proves correctne
 \end{enumerate}
 
 \subsection{Cryptographic primitives and assumptions}
-
+ 
 It is natural to accept widely used cryptographic primitives as secure ones. For instance standard hash functions such as SHA-256 and SHA-3 (Keccak)   may be assumed to be ideal 256-bit hash function and may be used to instantiate a 256-bit random oracle in the Fiat-Shamir transformation  and similar operations. 
 It should be noted however that the regular hash functions are not well suited for most proof systems capable of proving delay statements. As a result, their usage in delay proofs is probably limited. 
 %Further, random oracle queries heuristically instantiated by SHA256 calls may be arithmetised in a recursive verifier circuit, e.g. as done in [Halo Infinite](https://eprint.iacr.org/2020/1536.pdf). No other cryptographic assumption or heuristic may be used.
@@ -316,6 +316,12 @@ We note that this argument holds as long as the polynomial describing the iterat
 
 In this report we mostly ignore potential attacks on the proof system used in verifiable computation systems. We only note that they largely split into two groups: ones whose security is based on the hardness of discrete logarithm in elliptic curve or integer groups (and thus almost universally quantum insecure), and the ones that require little to no such assumption. However, not all protocols from the latter group have claimed post-quantum security as some of their components such as Fiat-Shamir challenge derivation are not proven post-quantum secure. We thus urge that in order to achieve post-quantum security it is desirable to use only those VC systems that do claim it (even though no formal proof of security may be given).
 
+\subsection{Attacks on cube-root-based candidates}
+
+Cube-root is considered as a possible sub-operation in some VDF candidates. We make the key observation that while operating on BLS/BN curves, the cube-root is not an injective function. Due to this observation, we can carry out the following attack to find collisions on cube-root based VDF candidates. 
+
+The VDF input is the cryptographic hash of the seed. Given the hash of the seed, at each step, the output could be forked by finding 2 different inputs such that their cube-root is the same. Doing this is quite simple, let $x = y^3$ and let $w^3 = 1$, $w$ is a cubic-root of unity. Now clearly, $(yw)^3 = x$ could provide us with a valid collision. Assuming the function is applied for $n$ rounds. We could have upto $2^n$ inputs such that they all have the same VDF output. An adversary could use pre-processing to have with it a table to efficiently find a seed which maps to one of the collision inputs under the hash function.
+
 
 \section{Concrete Proposals}\label{sec:proposal}
 
@@ -367,7 +373,7 @@ The VeeDo function is also based on the cubic roots in $\mathbb{F}_p$:
      \item Output $O = (x_{D+1},y_{D+1})$.
     \item Proof: create a VC proof (presumably STARK-based~\cite{DBLP:conf/crypto/Ben-SassonBHR19}) that  $F(I) = O$.
 \end{enumerate}
-The difference to MinRoot is that a combination of a power function and the state swap is replaced with a full-blown affine transformation. This approach, well known in the theory of block cipher design, is supposed to  provide faster diffusion and to ease analysis. However, we note that the diffusion speed is not as important for our setting as sequentiality is, since after $2^{20}$ or more iterations the diffusion becomes almost perfect anyway. Regarding sequentiality, we remark that VeeDo spends two parallelizable exponentiations per round, whereas MinRoot does only one.  Thus for the same delay time and same state size VeeDo requires twice bigger hardware, whereas the smaller state would reduce the security. The same ratio holds for the proof size and computation time: VeeDo requires twice as much for the a We thus conclude that VeeDo is slightly inferiour to MinRoot
+The difference to MinRoot is that a combination of a power function and the state swap is replaced with a full-blown affine transformation. This approach, well known in the theory of block cipher design, is supposed to  provide faster diffusion and to ease analysis. However, we note that the diffusion speed is not as important for our setting as sequentiality is, since after $2^{20}$ or more iterations the diffusion becomes almost perfect anyway. Regarding sequentiality, we remark that VeeDo spends two parallelizable exponentiations per round, whereas MinRoot does only one.  Thus for the same delay time and same state size VeeDo requires twice bigger hardware, whereas the smaller state would reduce the security. The same ratio holds for the proof size and computation time. We thus conclude that VeeDo is slightly inferiour to MinRoot
 
 \subsection{Sloth and Sloth++ (Wesolowski-Boneh et al.)}
 Sloth was suggested in~\cite{DBLP:journals/ijact/LenstraW17}. For the  $k$-bit a security level we select  a prime $p$ so that $p=4q+3$ for some $q$ and $p>2^{2k}$. Let $H$ be a regular cryptographic hash function such as SHA-2 with $2k$-bit output. The algorithm is as follows:
@@ -430,10 +436,13 @@ f(x,y)
 $$
 Note that in the context of precomputation and other attacks the state has effective size of $2\log p$ bits.
 
+\subsection{Complexity of Exponentiation}
+
 Another important operation is exponentiation. If exponentiation $x^y$ is performed using the Binary ladder exponentiation algorithm~\cite{Crandall_Pomerance_2005}, which utilizes the square and multiply method, the complexity is asymptotically:
 
-$$ C ~ (\log y)S + HM $$
+$$ C \sim (\log y)S + HM $$
 
+\vspace{5mm}
 \begin{algorithm}[H]
  initialization $z=x, a=1$\;
  then loop over bits of $y$, starting with lowest\;
@@ -446,9 +455,10 @@ $$ C ~ (\log y)S + HM $$
  }
  \caption{Steps in the Binary ladder exponentiation (right-left form) algorithm.}
 \end{algorithm}
-
+\vspace{5mm}
 Where $S$ is the number of squarings required, $H$ the number of $1$'s in the binary representation of $y$ and $M$ is the number of multiplications. The possible ways to improve ladder complexity involve changing the base to some $B = 2^b >2$. If we consider the Windowing ladder algorithm~\cite{Crandall_Pomerance_2005} (with pre-computation), the base-$B$ expansion of $y$ is represented as ($y_0, \dots, y_{D-1}$). It is assumed that the values $x^d$ (for $1 < d < B$, $d$ is odd) have been pre-computed. 
 
+\vspace{5mm}
 \begin{algorithm}[H]
  
  initialization $z=1$\;
@@ -459,13 +469,33 @@ Where $S$ is the number of squarings required, $H$ the number of $1$'s in the bi
  }
  \caption{Steps in the Windowing ladder algorithm.}
 \end{algorithm}
+\vspace{5mm}
 
 The average-case complexity of the windowing for the windowing algorithm is:
 
-$$C ~ (\log y)S + (1 - 2^{-b})\frac{\log y}{b}M$$
+$$C \sim (\log y)S + (1 - 2^{-b})\frac{\log y}{b}M$$
 
-While pre-computation is an important aspect to consider, if $b=3$ or $b=4$ the ladder computation is definitely reduced.
+For VDF computation, for each exponentiation operation $x^y$, the base $x$ keeps changing. In the windowing ladder algorithm, the precomputation phase requires calculating the powers of the base. Since the base keeps changing, to compare the costs of exponentiation using square-and-multiply or using the windowing ladder algorithm, we need to consider the calculation of the odd powers of the base up to $2^b = B$ as part of the windowing ladder algorithm. This adds $2^{b-1}$ multiplications to the cost of the exponentiation as calculating $x^{2(n +1) + 1}$ by multiplying $x^{2n+1}$ and $x^2$ requires one multiplication each time. Since the number of squaring remains the same, the only difference in cost of the two algorithms is in the number of multiplication operations. We compare the cost of the two algorithms for different values of $b$ in Table \ref{Tab:expCost}. The ideal choice of base $b$ is determined by the value of $b$ at which the function $(1 - 2^{-b})\frac{\log y}{b}$ is minimum for some given constant value of $\log y$. When we take $\log y = 256$, the global minima for the function is at $b = 5$.
 
+\begin{table}[ht]
+\caption{Comparing average exponentiation costs for Square-and-Multiply vs Windowing ladder }
+\centering
+  \begin{tabular}{|l | l | l | l | l| l |}
+    \hline
+     $b$ & Square-and-Multiply & $\log y = 256$ & Windowing Ladder & $\log y = 256$ \\
+    \hline
+    $1$     & $\log y \cdot S + \frac{1}{2}\log y\cdot M $ & $ 256 \cdot S + 128 \cdot M$ & $\log y \cdot S + \frac{1}{4}\log y\cdot M $ & $ 256 \cdot S + 64 \cdot M$ \\[1mm]
+    $2$       & $\log y \cdot S + \frac{1}{2}\log y\cdot M $ & $ 256 \cdot S + 128 \cdot M$ & $\log y \cdot S + (\frac{3}{8}\log y + 2)\cdot M $ & $ 256 \cdot S + 98 \cdot M$ \\[1mm]
+    $3$    & $\log y \cdot S + \frac{1}{2}\log y\cdot M $  & $ 256 \cdot S + 128 \cdot M$ & $\log y \cdot S + (\frac{7}{24}\log y + 4)\cdot M $ & $ 256 \cdot S + 79 \cdot M$ \\[1mm]
+    $4$    & $\log y \cdot S + \frac{1}{2}\log y\cdot M $ & $ 256 \cdot S + 128 \cdot M$  &  $\log y \cdot S + (\frac{15}{64}\log y + 8)\cdot M $ & $ 256 \cdot S + 68 \cdot M$  
+    \\[1mm]
+    $5$    & $\log y \cdot S + \frac{1}{2}\log y\cdot M $ & $ 256 \cdot S + 128 \cdot M$ & $\log y \cdot S + (\frac{31}{160}\log y + 16)\cdot M $ & $ 256 \cdot S + 66 \cdot M$
+    \\[1mm]
+    $6$    & $\log y \cdot S + \frac{1}{2}\log y\cdot M $& $ 256 \cdot S + 128 \cdot M$&  $\log y \cdot S + (\frac{21}{64}\log y + 32)\cdot M $ & $ 256 \cdot S + 116 \cdot M$ \\
+    \hline
+  \end{tabular}
+  \label{Tab:expCost}
+\end{table}
  %The VDF  function $F$ is defined as $f^D$ for $2^{26}\leq D \leq 2^{44}$.
  
  \subsection{Classical attacks}
